@@ -1,8 +1,12 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from typing import List, Dict, Any
+from datetime import datetime, timezone
+
 from models import Task
 from database import get_async_session
+
 
 router = APIRouter(
     prefix="/stats",
@@ -37,3 +41,34 @@ async def get_tasks_stats(
         "by_quadrant": by_quadrant,
         "by_status": by_status
     }
+
+
+@router.get("/deadlines")
+async def get_deadline_stats(
+    db: AsyncSession = Depends(get_async_session)
+) -> List[Dict[str, Any]]:
+
+    result = await db.execute(
+        select(Task).where(Task.completed == False)
+    )
+    tasks = result.scalars().all()
+
+    today = datetime.now(timezone.utc).date()
+    stats: List[Dict[str, Any]] = []
+
+    for t in tasks:
+        if t.deadline_at:
+            deadline_date = t.deadline_at.astimezone(timezone.utc).date()
+            days_left = (deadline_date - today).days
+        else:
+            days_left = None
+
+        stats.append({
+            "title": t.title,
+            "description": t.description,
+            "created_at": t.created_at,
+            "deadline_at": t.deadline_at,
+            "days_left": days_left
+        })
+
+    return stats

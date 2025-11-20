@@ -1,37 +1,46 @@
 # ToDo лист API
 
 ## Описание
-API для управления задачами с использованием матрицы Эйзенхауэра. Текущая версия использует PostgreSQL (Supabase) и асинхронный доступ к базе данных через SQLAlchemy 2.0 и asyncpg.
+API для управления задачами по матрице Эйзенхауэра. Текущая версия использует PostgreSQL (Supabase) и асинхронный доступ к базе данных через SQLAlchemy 2.0 и asyncpg. Добавлена поддержка планового дедлайна: срочность (`is_urgent`) теперь рассчитывается автоматически на основе разницы между текущей датой и дедлайном, а квадрант определяется по важности и вычисленной срочности.
 
 ## Технологии
-- FastAPI
-- Python 3.x
-- PostgreSQL (Supabase)
-- SQLAlchemy (async)
-- asyncpg
-- Pydantic v2
-- Uvicorn
+- FastAPI  
+- Python 3.x  
+- PostgreSQL (Supabase)  
+- SQLAlchemy 2.x (async)  
+- asyncpg  
+- Pydantic v2  
+- Uvicorn  
 
-## Доступные эндпоинты
-- `GET /` — метаданные API
-- `GET /health` — проверка статуса API и подключения к БД
+## Эндпоинты
+
+### Общие
+- `GET /` — метаданные API  
+- `GET /health` — проверка работоспособности API и соединения с БД  
 
 ### Эндпоинты задач (`/api/v2/tasks`)
-- `GET /api/v2/tasks` — все задачи
-- `GET /api/v2/tasks/quadrant/{quadrant}` — по квадранту (Q1–Q4)
-- `GET /api/v2/tasks/status/{status}` — по статусу (completed/pending)
-- `GET /api/v2/tasks/search?q={query}` — поиск по ключевому слову (≥2 символа)
-- `GET /api/v2/tasks/{task_id}` — по ID задачи
-- `POST /api/v2/tasks` — создание задачи
-- `PUT /api/v2/tasks/{task_id}` — обновление задачи
-- `PATCH /api/v2/tasks/{task_id}/complete` — отметить выполненной
-- `DELETE /api/v2/tasks/{task_id}` — удаление задачи
+- `GET /api/v2/tasks` — получить все задачи  
+- `GET /api/v2/tasks/quadrant/{quadrant}` — получить задачи по квадранту (Q1–Q4)  
+- `GET /api/v2/tasks/status/{status}` — получить задачи по статусу (`completed` / `pending`)  
+- `GET /api/v2/tasks/search?q={query}` — поиск задач (минимум 2 символа)  
+- `GET /api/v2/tasks/{task_id}` — получить задачу по ID  
+- `POST /api/v2/tasks` — создать задачу (дедлайн обязателен, срочность высчитывается автоматически)  
+- `PUT /api/v2/tasks/{task_id}` — обновить задачу (пересчёт срочности и квадранта)  
+- `PATCH /api/v2/tasks/{task_id}/complete` — отметить задачу выполненной  
+- `DELETE /api/v2/tasks/{task_id}` — удалить задачу  
 
 ### Эндпоинты статистики (`/api/v2/stats`)
 - `GET /api/v2/stats` — общая статистика:
-  - количество задач
-  - распределение по квадрантам
-  - количество выполненных и невыполненных задач
+  - количество задач  
+  - распределение по квадрантам  
+  - выполненные / невыполненные  
+
+- `GET /api/v2/stats/deadlines` — статистика по невыполненным задачам:
+  - название  
+  - описание  
+  - дата создания  
+  - дедлайн  
+  - оставшиеся дни до дедлайна  
 
 ## Подготовка окружения
 1. Создайте файл `.env`:

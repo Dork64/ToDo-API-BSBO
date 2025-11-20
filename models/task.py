@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.sql import func
 from database import Base
+from datetime import datetime, timezone
 
 
 class Task(Base):
@@ -8,25 +9,25 @@ class Task(Base):
 
     id = Column(
         Integer,
-        primary_key=True,       # Первичный ключ
-        index=True,             # Создать индекс для быстрого поиска
-        autoincrement=True      # Автоматическая генерация
+        primary_key=True,
+        index=True,
+        autoincrement=True
     )
 
     title = Column(
-        Text,                   # Text = текст неограниченной длины
-        nullable=False          # Не может быть NULL
+        Text,
+        nullable=False
     )
 
     description = Column(
         Text,
-        nullable=True           # Может быть NULL
+        nullable=True
     )
 
     is_important = Column(
         Boolean,
         nullable=False,
-        default=False           # По умолчанию False
+        default=False
     )
 
     is_urgent = Column(
@@ -36,7 +37,7 @@ class Task(Base):
     )
 
     quadrant = Column(
-        String(2),              # Максимум 2 символа: "Q1", "Q2", "Q3", "Q4"
+        String(2),
         nullable=False
     )
 
@@ -47,18 +48,40 @@ class Task(Base):
     )
 
     created_at = Column(
-        DateTime(timezone=True),    # С поддержкой часовых поясов
-        server_default=func.now(),  # Автоматически текущее время
+        DateTime(timezone=True),
+        server_default=func.now(),
         nullable=False
     )
 
     completed_at = Column(
         DateTime(timezone=True),
-        nullable=True               # NULL пока задача не завершена
+        nullable=True
     )
 
+    # Новый столбец: плановый дедлайн
+    deadline_at = Column(
+        DateTime(timezone=True),
+        nullable=False
+    )
+
+    @property
+    def days_left(self) -> int | None:
+        """
+        Сколько дней осталось до дедлайна от сегодняшней даты (UTC).
+        """
+        if not self.deadline_at:
+            return None
+
+        today = datetime.now(timezone.utc).date()
+        deadline_date = self.deadline_at.astimezone(timezone.utc).date()
+        return (deadline_date - today).days
+
     def __repr__(self) -> str:
-        return f"<Task(id={self.id}, title='{self.title}', quadrant='{self.quadrant}')>"
+        return (
+            f"<Task(id={self.id}, title='{self.title}', "
+            f"quadrant='{self.quadrant}', is_urgent={self.is_urgent}, "
+            f"deadline_at='{self.deadline_at}')>"
+        )
 
     def to_dict(self) -> dict:
         return {
@@ -70,5 +93,7 @@ class Task(Base):
             "quadrant": self.quadrant,
             "completed": self.completed,
             "created_at": self.created_at,
-            "completed_at": self.completed_at
+            "completed_at": self.completed_at,
+            "deadline_at": self.deadline_at,
+            "days_left": self.days_left,
         }

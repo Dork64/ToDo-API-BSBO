@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import List
-from datetime import datetime
-from database import get_async_session
+from datetime import datetime, timezone
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from schemas import TaskCreate, TaskUpdate, TaskResponse
 from sqlalchemy import select
+
+from database import get_async_session
+from schemas import TaskCreate, TaskUpdate, TaskResponse
 from models import Task
 
 
@@ -14,18 +16,42 @@ router = APIRouter(
     responses={404: {"description": "Task not found"}}
 )
 
+
+def _calculate_urgency(deadline_at: datetime) -> bool:
+    """
+    Срочно, если от сегодняшней даты до дедлайна осталось <= 3 дней.
+    """
+    today = datetime.now(timezone.utc).date()
+    deadline_date = deadline_at.astimezone(timezone.utc).date()
+    days_left = (deadline_date - today).days
+    return days_left <= 3
+
+
+def _calculate_quadrant(is_important: bool, is_urgent: bool) -> str:
+    """
+    Определение квадранта по важности и срочности.
+    """
+    if is_important and is_urgent:
+        return "Q1"
+    elif is_important and not is_urgent:
+        return "Q2"
+    elif not is_important and is_urgent:
+        return "Q3"
+    else:
+        return "Q4"
+
+
 @router.get("", response_model=List[TaskResponse])
 async def get_all_tasks(
-    # Сессия базы данных (автоматически через Depends)
     db: AsyncSession = Depends(get_async_session)
 ) -> List[TaskResponse]:
 
-    result = await db.execute(select(Task))   # Выполняем SELECT запрос
-    tasks = result.scalars().all()            # Получаем все объекты
+    result = await db.execute(select(Task))
+    tasks = result.scalars().all()
 
     return tasks
 
- 
+
 @router.get("/quadrant/{quadrant}", response_model=List[TaskResponse])
 async def get_tasks_by_quadrant(
     quadrant: str,
@@ -35,7 +61,7 @@ async def get_tasks_by_quadrant(
     if quadrant not in ["Q1", "Q2", "Q3", "Q4"]:
         raise HTTPException(
             status_code=400,
-            detail="Неверный квадрант. Используйте: Q1, Q2, Q3, Q4"  
+            detail="Неверный квадрант. Используйте: Q1, Q2, Q3, Q4"
         )
 
     result = await db.execute(
@@ -60,7 +86,6 @@ async def get_tasks_by_status(
 
     is_completed = (status == "completed")
 
-    # SELECT * FROM tasks WHERE completed = True/False
     result = await db.execute(
         select(Task).where(Task.completed == is_completed)
     )
@@ -76,11 +101,8 @@ async def search_tasks(
     db: AsyncSession = Depends(get_async_session)
 ) -> List[TaskResponse]:
 
-    keyword = f"%{q.lower()}%"  # %keyword% для LIKE
+    keyword = f"%{q.lower()}%"
 
-    # SELECT * FROM tasks
-    # WHERE LOWER(title) LIKE '%keyword%'
-    #    OR LOWER(description) LIKE '%keyword%'
     result = await db.execute(
         select(Task).where(
             (Task.title.ilike(keyword)) |
@@ -105,7 +127,6 @@ async def get_task_by_id(
     db: AsyncSession = Depends(get_async_session)
 ) -> TaskResponse:
 
-    # SELECT * FROM tasks WHERE id = task_id
     result = await db.execute(
         select(Task).where(Task.id == task_id)
     )
@@ -124,28 +145,25 @@ async def create_task(
     db: AsyncSession = Depends(get_async_session)
 ) -> TaskResponse:
 
-    # Определяем квадрант
-    if task.is_important and task.is_urgent:
-        quadrant = "Q1"
-    elif task.is_important and not task.is_urgent:
-        quadrant = "Q2"
-    elif not task.is_important and task.is_urgent:
-        quadrant = "Q3"
-    else:
-        quadrant = "Q4"
+    is_urgent = _calculate_urgency(task.deadline_at)
+    quadrant = _calculate_quadrant(
+        is_important=task.is_important,
+        is_urgent=is_urgent
+    )
 
     new_task = Task(
         title=task.title,
         description=task.description,
         is_important=task.is_important,
-        is_urgent=task.is_urgent,
+        is_urgent=is_urgent,
         quadrant=quadrant,
-        completed=False  
+        completed=False,
+        deadline_at=task.deadline_at,
     )
 
-    db.add(new_task)           
-    await db.commit()           
-    await db.refresh(new_task)  
+    db.add(new_task)
+    await db.commit()
+    await db.refresh(new_task)
 
     return new_task
 
@@ -169,19 +187,17 @@ async def update_task(
     update_data = task_update.model_dump(exclude_unset=True)
 
     for field, value in update_data.items():
-        setattr(task, field, value)  
+        setattr(task, field, value)
 
-    if "is_important" in update_data or "is_urgent" in update_data:
-        if task.is_important and task.is_urgent:
-            task.quadrant = "Q1"
-        elif task.is_important and not task.is_urgent:
-            task.quadrant = "Q2"
-        elif not task.is_important and task.is_urgent:
-            task.quadrant = "Q3"
-        else:
-            task.quadrant = "Q4"
+    if "is_important" in update_data or "deadline_at" in update_data:
+        is_urgent = _calculate_urgency(task.deadline_at)
+        task.is_urgent = is_urgent
+        task.quadrant = _calculate_quadrant(
+            is_important=task.is_important,
+            is_urgent=is_urgent
+        )
 
-    await db.commit()      
+    await db.commit()
     await db.refresh(task)
 
     return task
@@ -202,7 +218,7 @@ async def complete_task(
         raise HTTPException(status_code=404, detail="Задача не найдена")
 
     task.completed = True
-    task.completed_at = datetime.now()
+    task.completed_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(task)
@@ -229,8 +245,8 @@ async def delete_task(
         "title": task.title
     }
 
-    await db.delete(task)  
-    await db.commit()     
+    await db.delete(task)
+    await db.commit()
 
     return {
         "message": "Задача успешно удалена",
