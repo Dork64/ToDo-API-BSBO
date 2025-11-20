@@ -2,8 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional 
 from datetime import datetime 
  
-# Базовая схема для Task. 
-# Все поля, которые есть в нашей "базе данных" tasks_db 
+
 class TaskBase(BaseModel): 
     title: str = Field( 
         ..., # троеточие означает "обязательное поле" 
@@ -21,13 +20,11 @@ class TaskBase(BaseModel):
         ..., 
         description="Срочность задачи") 
  
-# Схема для создания новой задачи 
-# Наследует все поля от TaskBase 
+
 class TaskCreate(TaskBase): 
     pass 
  
-# Схема для обновления задачи (используется в PUT) 
-# Все поля опциональные, т.к. мы можем захотеть обновить только title или status 
+
 class TaskUpdate(BaseModel): 
     title: Optional[str] = Field( 
         None, 
@@ -48,9 +45,6 @@ class TaskUpdate(BaseModel):
         None, 
         description="Статус выполнения") 
  
-# Модель для ответа (TaskResponse) 
-# При ответе сервер возвращает полную информацию о задаче, 
-# включая сгенерированные поля: id, quadrant, created_at, etc. 
 class TaskResponse(TaskBase): 
     id: int = Field( 
         ..., 
@@ -66,5 +60,5 @@ class TaskResponse(TaskBase):
     created_at: datetime = Field( 
         ..., 
         description="Дата и время создания задачи") 
-    class Config:    # Config класс для работы с ORM (понадобится посде подключения СУБД) 
+    class Config:    
         from_attributes = True 
