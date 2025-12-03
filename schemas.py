@@ -20,7 +20,7 @@ class TaskBase(BaseModel):
         description="Важность задачи"
     )
     deadline_at: Optional[datetime] = Field(
-        ...,
+        None,
         description="Плановый дедлайн задачи (дата и время)"
     )
 

@@ -2,9 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from models import Task
+from typing import List
 from database import get_async_session
 from datetime import datetime, timezone
 from schemas import TimingStatsResponse
+from schemas import TaskResponse
+from utils import calculate_days_until_deadline
 
 router = APIRouter(
     prefix="/stats",
@@ -111,3 +114,45 @@ async def get_deadline_stats(
         on_plan_pending=stats_row.on_plan_pending or 0,
         overtime_pending=stats_row.overdue_pending or 0,
     )
+
+
+@router.get("/today", response_model=List[TaskResponse])
+async def get_today_deadline_tasks(
+    db: AsyncSession = Depends(get_async_session),
+) -> List[TaskResponse]:
+
+
+    today_utc = datetime.now(timezone.utc).date()
+
+    result = await db.execute(
+        select(Task).where(
+            Task.completed == False,
+            Task.deadline_at.is_not(None),
+            func.date(Task.deadline_at) == today_utc
+        )
+    )
+
+    tasks = result.scalars().all()
+    response: List[TaskResponse] = []
+
+    for task in tasks:
+        # считаем дни до дедлайна
+        days_deadline = calculate_days_until_deadline(task.deadline_at)
+
+        task_dict = task.to_dict()
+        task_dict["days_until_deadline"] = days_deadline
+
+        # статус как в обычном GET
+        if (
+            task.deadline_at is not None
+            and days_deadline is not None
+            and days_deadline < 0
+        ):
+            task_dict["status_message"] = "Задача просрочена"
+        else:
+            task_dict["status_message"] = "Время поднапрячься!"
+
+        response.append(TaskResponse(**task_dict))
+
+    return response
+
