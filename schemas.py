@@ -19,28 +19,17 @@ class TaskBase(BaseModel):
         ...,
         description="Важность задачи"
     )
-    deadline_at: datetime = Field(
+    deadline_at: Optional[datetime] = Field(
         ...,
         description="Плановый дедлайн задачи (дата и время)"
     )
 
-
 class TaskCreate(TaskBase):
-    """
-    Создание задачи:
-    - title
-    - description (опц.)
-    - is_important
-    - deadline_at
-    """
     pass
 
 
 class TaskUpdate(BaseModel):
-    """
-    Частичное обновление задачи.
-    is_urgent тут нет — оно считается автоматически.
-    """
+
     title: Optional[str] = Field(
         None,
         min_length=3,
@@ -89,14 +78,37 @@ class TaskResponse(TaskBase):
         ...,
         description="Дата и время создания задачи"
     )
+    class Config:
+        from_attributes = True
     completed_at: Optional[datetime] = Field(
         None,
         description="Дата и время завершения задачи"
     )
-    days_left: Optional[int] = Field(
+    days_until_deadline: Optional[int] = Field(
         None,
-        description="Оставшийся срок до дедлайна в днях (расчётное поле)"
+        description="Количество дней до дедлайна")
+    status_message: Optional[str] = Field(
+        None,
+        description="Сообщение о статусе задачи"
     )
 
     class Config:
         from_attributes = True
+
+class TimingStatsResponse(BaseModel): 
+    completed_on_time: int = Field( 
+        ..., 
+       description="Количество задач, завершенных в срок" 
+    ) 
+    completed_late: int = Field( 
+        ..., 
+      description="Количество задач, завершенных с нарушением сроков" 
+    ) 
+    on_plan_pending: int = Field( 
+        ..., 
+    description="Количество задач в работе, выполняемых в соответствии с планом" 
+    ) 
+    overtime_pending: int = Field( 
+        ..., 
+    description="Количество просроченных незавершенных задач" 
+    ) 
