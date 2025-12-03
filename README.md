@@ -76,6 +76,7 @@ DATABASE_URL=postgresql+asyncpg://<user>:<password>@<host>:<port>/<dbname>
 API_HOST=0.0.0.0
 API_PORT=8000
 ENVIRONMENT=development
+SECRET_KEY = 'ваш_ключ' (получается командой openssl rand -hex 32 )
 
 2. Установите зависимости:
 pip install -r requirements.txt
