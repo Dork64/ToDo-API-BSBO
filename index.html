@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ToDo</title>
+  <style>
+    :root{
+      --bg:#ffffff;
+      --text:#111;
+      --muted:#666;
+      --line:#e6e6e6;
+      --panel:#fff;
+      --radius:12px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap{max-width:900px; margin:28px auto; padding:0 16px 28px;}
+    .top{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;}
+    .brand h1{margin:0; font-size:18px; font-weight:700;}
+    .brand .sub{margin-top:2px; font-size:12px; color:var(--muted);}
+
+    .panel{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    label{display:block; margin:10px 0 6px; font-size:12px; color:var(--muted)}
+    input, textarea, select{
+      width:100%;
+      padding:10px 10px;
+      border-radius: 10px;
+      border:1px solid var(--line);
+      background:#fff;
+      color: var(--text);
+      outline:none;
+    }
+    textarea{min-height:84px; resize: vertical;}
+
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .row > *{flex:1}
+    .row .shrink{flex:0 0 auto}
+
+    button{
+      padding:10px 12px;
+      border-radius: 10px;
+      border:1px solid var(--line);
+      background:#fff;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button:hover{background:#fafafa}
+    button.primary{
+      border-color:#111;
+      background:#111;
+      color:#fff;
+    }
+    button.danger{
+      border-color:#dcdcdc;
+      color:#b00020;
+    }
+    button:disabled{opacity:.5; cursor:not-allowed}
+
+    .linkbtn{
+      border:none; background:transparent; padding:0;
+      color:#111; text-decoration: underline; cursor:pointer;
+      font-weight:600;
+    }
+
+    .err{
+      display:none;
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius: 10px;
+      border:1px solid #ffd7d7;
+      background:#fff5f5;
+      color:#b00020;
+      font-size:13px;
+      white-space: pre-line;
+    }
+
+    /* Main bar */
+    .bar{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      padding-bottom:12px; border-bottom:1px solid var(--line); margin-bottom:12px;
+    }
+    .bar input, .bar select{width:auto; min-width:160px; flex:1}
+    .bar .wide{min-width:240px; flex:2}
+    .right{display:flex; gap:10px; align-items:center; justify-content:flex-end; flex: 1}
+
+    /* Tasks */
+    .tasks{display:flex; flex-direction:column; gap:10px; margin-top:12px}
+    .card{
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      padding:12px;
+      background:#fff;
+    }
+    .card.done{opacity:.65}
+    .titleline{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    }
+    .name{margin:0; font-size:14px; font-weight:700; line-height:1.25}
+    .meta{margin-top:6px; font-size:12px; color:var(--muted)}
+    .desc{margin-top:8px; font-size:13px; line-height:1.35; white-space: pre-wrap}
+
+    .chips{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end}
+    .chip{
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:3px 8px;
+      font-size:11px;
+      color:var(--muted);
+    }
+    .chip.imp{color:#111}
+
+    .actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+    .actions button{padding:8px 10px; border-radius: 10px; font-size:13px}
+
+    .empty{
+      border:1px dashed var(--line);
+      border-radius: var(--radius);
+      padding:14px;
+      color:var(--muted);
+      text-align:center;
+      font-size:13px;
+    }
+
+    /* Modal */
+    .overlay{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.30);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+    .modal{
+      width:100%;
+      max-width:520px;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .mhead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
+    .mhead h3{margin:0; font-size:16px}
+    .xbtn{width:38px; height:38px; border-radius:10px}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <h1>ToDo</h1>
+        <div class="sub">Простой список задач</div>
+      </div>
+
+      <div class="row" style="justify-content:flex-end; gap:10px">
+        <div id="whoPill" style="display:none; color:var(--muted); font-size:13px;">
+          Вошёл как <b id="whoName"></b>
+        </div>
+        <button id="logoutBtn" class="danger" style="display:none;">Выйти</button>
+      </div>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="panel" id="registerView">
+      <h2 style="margin:0 0 10px; font-size:16px;">Регистрация</h2>
+
+      <label>Никнейм</label>
+      <input id="regNick" placeholder="Артём" />
+
+      <label>Email</label>
+      <input id="regEmail" type="email" placeholder="name@mail.com" />
+
+      <label>Пароль</label>
+      <input id="regPass" type="password" placeholder="минимум 6 символов" />
+
+      <div class="err" id="regErr"></div>
+
+      <div class="row" style="margin-top:12px;">
+        <button class="primary" id="regBtn">Зарегистрироваться</button>
+      </div>
+
+      <div style="margin-top:10px; font-size:13px; color:var(--muted);">
+        Есть аккаунт? <button class="linkbtn" id="toLogin">Войти</button>
+      </div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="panel" id="loginView" style="display:none;">
+      <h2 style="margin:0 0 10px; font-size:16px;">Вход</h2>
+
+      <label>Email</label>
+      <input id="loginEmail" type="email" placeholder="name@mail.com" />
+
+      <label>Пароль</label>
+      <input id="loginPass" type="password" placeholder="••••••••" />
+
+      <div class="err" id="loginErr"></div>
+
+      <div class="row" style="margin-top:12px;">
+        <button class="primary" id="loginBtn">Войти</button>
+      </div>
+
+      <div style="margin-top:10px; font-size:13px; color:var(--muted);">
+        Нет аккаунта? <button class="linkbtn" id="toRegister">Регистрация</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="panel" id="mainView" style="display:none;">
+      <div class="bar">
+        <input class="wide" id="q" placeholder="Поиск" />
+        <select id="quadrant">
+          <option value="">Все квадранты</option>
+          <option value="Q1">Q1</option>
+          <option value="Q2">Q2</option>
+          <option value="Q3">Q3</option>
+          <option value="Q4">Q4</option>
+        </select>
+        <select id="status">
+          <option value="">Все статусы</option>
+          <option value="pending">В процессе</option>
+          <option value="completed">Выполнено</option>
+        </select>
+
+        <div class="right">
+          <button id="applyBtn">Применить</button>
+          <button id="clearBtn">Сбросить</button>
+          <button class="primary" id="openCreateBtn">+ Задача</button>
+        </div>
+      </div>
+
+      <div class="tasks" id="list"></div>
+    </div>
+  </div>
+
+  <!-- CREATE MODAL -->
+  <div class="overlay" id="createOverlay">
+    <div class="modal">
+      <div class="mhead">
+        <h3>Новая задача</h3>
+        <button class="xbtn" id="closeCreateBtn">✕</button>
+      </div>
+
+      <label>Название</label>
+      <input id="mTitle" placeholder="Например: сдать лабу" />
+
+      <label>Описание</label>
+      <textarea id="mDesc" placeholder="необязательно"></textarea>
+
+      <div class="row">
+        <div>
+          <label>Дедлайн</label>
+          <input id="mDeadline" type="datetime-local" />
+        </div>
+        <div>
+          <label>Важность</label>
+          <select id="mImportant">
+            <option value="false">Обычная</option>
+            <option value="true">Важная</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="err" id="mErr"></div>
+
+      <div class="row" style="margin-top:12px;">
+        <button class="primary" id="createBtn">Создать</button>
+        <button id="cancelCreateBtn">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT MODAL (ДОБАВЛЕНО) -->
+  <div class="overlay" id="editOverlay">
+    <div class="modal">
+      <div class="mhead">
+        <h3>Редактировать задачу</h3>
+        <button class="xbtn" id="closeEditBtn">✕</button>
+      </div>
+
+      <label>Название</label>
+      <input id="eTitle" placeholder="Название" />
+
+      <label>Описание</label>
+      <textarea id="eDesc" placeholder="Описание (необязательно)"></textarea>
+
+      <div class="row">
+        <div>
+          <label>Дедлайн</label>
+          <input id="eDeadline" type="datetime-local" />
+        </div>
+        <div>
+          <label>Важность</label>
+          <select id="eImportant">
+            <option value="false">Обычная</option>
+            <option value="true">Важная</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="err" id="eErr"></div>
+
+      <div class="row" style="margin-top:12px;">
+        <button class="primary" id="saveEditBtn">Сохранить</button>
+        <button id="cancelEditBtn">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

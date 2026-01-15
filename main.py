@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from routers import tasks, stats, auth
 from scheduler import start_scheduler
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -32,6 +33,22 @@ app = FastAPI(
         "name": "Вьюгин Иван",
     },
     lifespan=lifespan 
+)
+
+
+origins = [
+    "http://localhost",       # фронтенд, если открываешь через file:// браузер
+    "http://127.0.0.1",
+    "http://127.0.0.1:5500",  # если используешь Live Server VS Code
+    "*",                      # или просто разрешить все
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Подключение роутеров
